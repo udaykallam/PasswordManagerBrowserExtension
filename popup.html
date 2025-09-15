@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Secure Password Manager</title>
+  <style>
+    body { font-family: Arial, sans-serif; width: 350px; padding: 10px; }
+    label, input, button { display: block; margin-bottom: 10px; width: 100%; }
+    #message { color: red; margin-top: 10px; }
+    #backupMessage { color: green; margin-top: 10px; white-space: pre-wrap; }
+    #vault { margin-top: 10px; }
+    button { cursor: pointer; }
+  </style>
+</head>
+<body>
+
+  <div id="setupMasterDiv" style="display:none;">
+    <h3>Set Master Password</h3>
+    <input type="password" id="masterPasswordSetup" placeholder="Enter master password" />
+    <input type="password" id="masterPasswordConfirm" placeholder="Confirm master password" />
+    <button id="setupBtn">Set Password</button>
+  </div>
+
+  <div id="unlockDiv" style="display:none;">
+    <h3>Unlock Vault</h3>
+    <input type="password" id="masterPasswordUnlock" placeholder="Enter master password" />
+    <button id="unlockBtn">Unlock</button>
+  </div>
+
+  <div id="vault" style="display:none;">
+    <button id="lockBtn" style="float:right;">Lock Vault</button>
+    <h2>Password Manager</h2>
+
+    <h3>Add Password</h3>
+    <input type="text" id="site" placeholder="Site (example.com)" />
+    <input type="text" id="username" placeholder="Username" />
+    <input type="password" id="password" placeholder="Password" />
+    <button id="saveBtn">Save Password</button>
+
+    <h3>Retrieve Password</h3>
+    <input type="text" id="retrieveSite" placeholder="Site to retrieve" />
+    <button id="retrieveBtn">Get Password & Autofill</button>
+    <pre id="result"></pre>
+
+    <h3>Password Generator</h3>
+    <input type="text" id="generatedPassword" readonly placeholder="Generated password" />
+    <button id="generateBtn">Generate Password</button>
+
+    <h3>Backup / Restore Vault</h3>
+    <button id="exportBtn">Export Encrypted Vault</button>
+    <input type="file" id="importFile" />
+    <button id="importBtn">Import Encrypted Vault</button>
+    <pre id="backupMessage"></pre>
+  </div>
+
+  <div id="message"></div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
