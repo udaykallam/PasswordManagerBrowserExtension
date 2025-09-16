@@ -9,6 +9,7 @@
     #backupMessage { color: green; margin-top: 10px; white-space: pre-wrap; }
     #vault { margin-top: 10px; }
     button { cursor: pointer; }
+    #detectedDiv { background: #ffe0e0; padding: 8px; margin-bottom: 10px; border-radius: 4px;}
   </style>
 </head>
 <body>
@@ -29,6 +30,11 @@
   <div id="vault" style="display:none;">
     <button id="lockBtn" style="float:right;">Lock Vault</button>
     <h2>Password Manager</h2>
+
+    <div id="detectedDiv" style="display:none;">
+      <span id="detectedMsg"></span>
+      <button id="saveDetectedBtn">Save Detected Credentials</button>
+    </div>
 
     <h3>Add Password</h3>
     <input type="text" id="site" placeholder="Site (example.com)" />

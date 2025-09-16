@@ -1,3 +1,21 @@
+document.addEventListener('submit', function(e) {
+  const form = e.target;
+  const passwordField = form.querySelector('input[type="password"]');
+  if (passwordField) {
+    const usernameField = form.querySelector('input[type="text"], input[type="email"], input[name*="user"], input[name*="email"]');
+    const username = usernameField ? usernameField.value : '';
+    const password = passwordField.value;
+    const site = window.location.hostname;
+
+    chrome.runtime.sendMessage({
+      action: 'credentialsDetected',
+      site: site,
+      username: username,
+      password: password
+    });
+  }
+}, true);
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === 'fillCredentials') {
     const { username, password } = message;

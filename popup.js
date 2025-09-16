@@ -1,6 +1,7 @@
 let cryptoKey = null;
-const MASTER_HASH_KEY = 'masterKeyHash';  
-const SALT_KEY = 'saltKey';               
+const MASTER_HASH_KEY = 'masterKeyHash';
+const SALT_KEY = 'saltKey';
+let detectedCredentials = null;
 
 async function generateAndSaveSalt() {
   let saltArray = new Uint8Array(16);
@@ -130,6 +131,45 @@ function getPasswordEntry(site, key) {
   });
 }
 
+chrome.storage.local.get('detectedCredentials', (result) => {
+  if (result.detectedCredentials) {
+    detectedCredentials = result.detectedCredentials;
+    document.getElementById('detectedDiv').style.display = 'block';
+    document.getElementById('detectedMsg').textContent =
+      `Login detected for ${detectedCredentials.site}. Click below to save.`;
+    document.getElementById('site').value = detectedCredentials.site;
+    document.getElementById('username').value = detectedCredentials.username;
+    document.getElementById('password').value = detectedCredentials.password;
+  } else {
+    document.getElementById('detectedDiv').style.display = 'none';
+  }
+});
+
+document.getElementById('saveDetectedBtn').addEventListener('click', async () => {
+  if (!cryptoKey) {
+    alert('Please unlock vault first');
+    return;
+  }
+  if (!detectedCredentials) {
+    alert('No detected credentials to save.');
+    return;
+  }
+  try {
+    await savePasswordEntry(
+      detectedCredentials.site,
+      detectedCredentials.username,
+      detectedCredentials.password,
+      cryptoKey
+    );
+    alert('Detected credentials saved securely!');
+    detectedCredentials = null;
+    chrome.storage.local.remove('detectedCredentials');
+    document.getElementById('detectedDiv').style.display = 'none';
+  } catch {
+    alert('Failed to save detected credentials.');
+  }
+});
+
 document.getElementById('setupBtn').addEventListener('click', async () => {
   const pw1 = document.getElementById('masterPasswordSetup').value;
   const pw2 = document.getElementById('masterPasswordConfirm').value;
@@ -164,6 +204,7 @@ document.getElementById('lockBtn').addEventListener('click', () => {
   document.getElementById('unlockDiv').style.display = 'block';
   document.getElementById('setupMasterDiv').style.display = 'none';
   document.getElementById('message').textContent = 'Vault locked.';
+  document.getElementById('detectedDiv').style.display = 'none';
 });
 
 document.getElementById('saveBtn').addEventListener('click', async () => {
@@ -273,6 +314,7 @@ function showVaultUI() {
   document.getElementById('setupMasterDiv').style.display = 'none';
   document.getElementById('unlockDiv').style.display = 'none';
   document.getElementById('message').textContent = '';
+  document.getElementById('detectedDiv').style.display = detectedCredentials ? 'block' : 'none';
 }
 
 (async function init() {
@@ -285,6 +327,7 @@ function showVaultUI() {
   }
   document.getElementById('vault').style.display = 'none';
   document.getElementById('message').textContent = '';
+  document.getElementById('detectedDiv').style.display = 'none';
 })();
 
 window.addEventListener('unload', () => {

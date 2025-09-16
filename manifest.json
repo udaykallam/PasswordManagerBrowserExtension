@@ -2,8 +2,14 @@
   "manifest_version": 3,
   "name": "Secure Password Manager",
   "version": "1.0",
-  "description": "A secure password manager extension with master password setup and unlock",
-  "permissions": ["storage", "activeTab", "scripting", "webNavigation"],
+  "description": "A secure password manager extension with notification save prompt",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting",
+    "webNavigation",
+    "notifications"
+  ],
   "host_permissions": ["<all_urls>"],
   "action": {
     "default_popup": "popup.html",
