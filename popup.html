@@ -3,59 +3,286 @@
 <head>
   <title>Secure Password Manager</title>
   <style>
-    body { font-family: Arial, sans-serif; width: 350px; padding: 10px; }
-    label, input, button { display: block; margin-bottom: 10px; width: 100%; }
-    #message { color: red; margin-top: 10px; }
-    #backupMessage { color: green; margin-top: 10px; white-space: pre-wrap; }
-    #vault { margin-top: 10px; }
-    button { cursor: pointer; }
-    #detectedDiv { background: #ffe0e0; padding: 8px; margin-bottom: 10px; border-radius: 4px;}
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 14px;
+      line-height: 1.4;
+      color: #202124;
+      background: #ffffff;
+      width: 380px;
+      min-height: 400px;
+    }
+
+    .container {
+      padding: 20px;
+    }
+
+    h2 {
+      font-size: 18px;
+      font-weight: 500;
+      margin-bottom: 20px;
+      color: #1a73e8;
+    }
+
+    h3 {
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 12px;
+      color: #5f6368;
+      border-bottom: 1px solid #e8eaed;
+      padding-bottom: 8px;
+    }
+
+    input[type="text"], 
+    input[type="password"] {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1px solid #dadce0;
+      border-radius: 8px;
+      font-size: 14px;
+      margin-bottom: 12px;
+      background: #ffffff;
+      transition: border-color 0.2s;
+    }
+
+    input[type="text"]:focus, 
+    input[type="password"]:focus {
+      outline: none;
+      border-color: #1a73e8;
+      box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.1);
+    }
+
+    input[type="text"]::placeholder,
+    input[type="password"]::placeholder {
+      color: #9aa0a6;
+    }
+
+    button {
+      background: #1a73e8;
+      color: white;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 0.2s;
+      width: 100%;
+      margin-bottom: 12px;
+    }
+
+    button:hover {
+      background: #1557b0;
+    }
+
+    button:active {
+      background: #1246a0;
+    }
+
+    .secondary-btn {
+      background: #ffffff;
+      color: #1a73e8;
+      border: 1px solid #dadce0;
+    }
+
+    .secondary-btn:hover {
+      background: #f8f9fa;
+      border-color: #1a73e8;
+    }
+
+    .lock-btn {
+      background: #ea4335;
+      float: right;
+      width: auto;
+      margin-bottom: 0;
+      padding: 8px 12px;
+      font-size: 12px;
+    }
+
+    .lock-btn:hover {
+      background: #d33b2c;
+    }
+
+    input[type="file"] {
+      border: 1px dashed #dadce0;
+      border-radius: 6px;
+      padding: 12px;
+      margin-bottom: 12px;
+      background: #f8f9fa;
+      cursor: pointer;
+    }
+
+    #message {
+      background: #fce8e6;
+      color: #d93025;
+      padding: 12px;
+      border-radius: 6px;
+      margin-top: 16px;
+      font-size: 13px;
+      display: none;
+    }
+
+    #backupMessage {
+      background: #e6f4ea;
+      color: #137333;
+      padding: 12px;
+      border-radius: 6px;
+      margin-top: 12px;
+      font-size: 12px;
+      font-family: 'Courier New', monospace;
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 100px;
+      overflow-y: auto;
+    }
+
+    #result {
+      background: #f8f9fa;
+      border: 1px solid #e8eaed;
+      border-radius: 6px;
+      padding: 12px;
+      margin-top: 12px;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      color: #5f6368;
+      white-space: pre-wrap;
+      min-height: 40px;
+    }
+
+    #detectedDiv {
+      background: #fff3cd;
+      border: 1px solid #ffeaa7;
+      color: #856404;
+      padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 20px;
+    }
+
+    #detectedDiv button {
+      background: #856404;
+      margin-top: 8px;
+    }
+
+    #detectedDiv button:hover {
+      background: #6c5228;
+    }
+
+    .section {
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid #f1f3f4;
+    }
+
+    .section:last-child {
+      border-bottom: none;
+      margin-bottom: 0;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .setup-container {
+      text-align: center;
+      padding: 40px 20px;
+    }
+
+    .setup-container h3 {
+      color: #1a73e8;
+      border: none;
+      padding-bottom: 0;
+      margin-bottom: 20px;
+      font-size: 16px;
+    }
+
+    .unlock-container {
+      text-align: center;
+      padding: 40px 20px;
+    }
+
+    .unlock-container h3 {
+      color: #1a73e8;
+      border: none;
+      padding-bottom: 0;
+      margin-bottom: 20px;
+      font-size: 16px;
+    }
+
+    #generatedPassword {
+      background: #f8f9fa;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+    }
+
+    .success-message {
+      background: #e6f4ea !important;
+      color: #137333 !important;
+    }
   </style>
 </head>
 <body>
 
-  <div id="setupMasterDiv" style="display:none;">
+  <div id="setupMasterDiv" class="setup-container" style="display:none;">
     <h3>Set Master Password</h3>
     <input type="password" id="masterPasswordSetup" placeholder="Enter master password" />
     <input type="password" id="masterPasswordConfirm" placeholder="Confirm master password" />
     <button id="setupBtn">Set Password</button>
   </div>
 
-  <div id="unlockDiv" style="display:none;">
+  <div id="unlockDiv" class="unlock-container" style="display:none;">
     <h3>Unlock Vault</h3>
     <input type="password" id="masterPasswordUnlock" placeholder="Enter master password" />
     <button id="unlockBtn">Unlock</button>
   </div>
 
-  <div id="vault" style="display:none;">
-    <button id="lockBtn" style="float:right;">Lock Vault</button>
-    <h2>Password Manager</h2>
+  <div id="vault" class="container" style="display:none;">
+    <div class="header">
+      <h2></h2>Password Manager</h2>
+      <button class="lock-btn" id="lockBtn">Lock</button>
+    </div>
 
     <div id="detectedDiv" style="display:none;">
       <span id="detectedMsg"></span>
       <button id="saveDetectedBtn">Save Detected Credentials</button>
     </div>
 
-    <h3>Add Password</h3>
-    <input type="text" id="site" placeholder="Site (example.com)" />
-    <input type="text" id="username" placeholder="Username" />
-    <input type="password" id="password" placeholder="Password" />
-    <button id="saveBtn">Save Password</button>
+    <div class="section">
+      <h3>Add Password</h3>
+      <input type="text" id="site" placeholder="Site (example.com)" />
+      <input type="text" id="username" placeholder="Username" />
+      <input type="password" id="password" placeholder="Password" />
+      <button id="saveBtn">Save Password</button>
+    </div>
 
-    <h3>Retrieve Password</h3>
-    <input type="text" id="retrieveSite" placeholder="Site to retrieve" />
-    <button id="retrieveBtn">Get Password & Autofill</button>
-    <pre id="result"></pre>
+    <div class="section">
+      <h3>Retrieve Password</h3>
+      <input type="text" id="retrieveSite" placeholder="Site to retrieve" />
+      <button id="retrieveBtn" class="secondary-btn">Get Password & Autofill</button>
+      <pre id="result"></pre>
+    </div>
 
-    <h3>Password Generator</h3>
-    <input type="text" id="generatedPassword" readonly placeholder="Generated password" />
-    <button id="generateBtn">Generate Password</button>
+    <div class="section">
+      <h3>Password Generator</h3>
+      <input type="text" id="generatedPassword" readonly placeholder="Generated password will appear here" />
+      <button id="generateBtn" class="secondary-btn">Generate Password</button>
+    </div>
 
-    <h3>Backup / Restore Vault</h3>
-    <button id="exportBtn">Export Encrypted Vault</button>
-    <input type="file" id="importFile" />
-    <button id="importBtn">Import Encrypted Vault</button>
-    <pre id="backupMessage"></pre>
+    <div class="section">
+      <h3>Backup & Restore</h3>
+      <button id="exportBtn" class="secondary-btn">Export Encrypted Vault</button>
+      <input type="file" id="importFile" />
+      <button id="importBtn" class="secondary-btn">Import Encrypted Vault</button>
+      <pre id="backupMessage"></pre>
+    </div>
   </div>
 
   <div id="message"></div>
