@@ -1,135 +1,4 @@
-let cryptoKey = null;
-const MASTER_HASH_KEY = 'masterKeyHash';
-const SALT_KEY = 'saltKey';
 let detectedCredentials = null;
-
-async function generateAndSaveSalt() {
-  let saltArray = new Uint8Array(16);
-  window.crypto.getRandomValues(saltArray);
-  const saltString = Array.from(saltArray).map(b => b.toString(16).padStart(2, '0')).join('');
-  await chrome.storage.local.set({ [SALT_KEY]: saltString });
-  return saltString;
-}
-
-async function getSalt() {
-  const res = await chrome.storage.local.get(SALT_KEY);
-  if (res[SALT_KEY]) return res[SALT_KEY];
-  return await generateAndSaveSalt();
-}
-
-async function deriveKeyFromPassword(masterPassword, saltHex) {
-  const encoder = new TextEncoder();
-  const saltBytes = new Uint8Array(saltHex.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
-  const keyMaterial = await window.crypto.subtle.importKey(
-    'raw',
-    encoder.encode(masterPassword),
-    { name: 'PBKDF2' },
-    false,
-    ['deriveKey']
-  );
-  const key = await window.crypto.subtle.deriveKey(
-    {
-      name: 'PBKDF2',
-      salt: saltBytes,
-      iterations: 150000,
-      hash: 'SHA-256',
-    },
-    keyMaterial,
-    { name: 'AES-GCM', length: 256 },
-    true,
-    ['encrypt', 'decrypt']
-  );
-  return key;
-}
-
-async function exportKeyHash(key) {
-  const rawKey = await window.crypto.subtle.exportKey('raw', key);
-  const hashBuffer = await window.crypto.subtle.digest('SHA-256', rawKey);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-async function isMasterPasswordSet() {
-  const res = await chrome.storage.local.get(MASTER_HASH_KEY);
-  return !!res[MASTER_HASH_KEY];
-}
-
-async function saveMasterPasswordHash(hash) {
-  await chrome.storage.local.set({ [MASTER_HASH_KEY]: hash });
-}
-
-async function verifyMasterPassword(masterPassword) {
-  const salt = await getSalt();
-  const key = await deriveKeyFromPassword(masterPassword, salt);
-  const hash = await exportKeyHash(key);
-  const res = await chrome.storage.local.get(MASTER_HASH_KEY);
-  if (res[MASTER_HASH_KEY] === hash) {
-    cryptoKey = key;
-    return true;
-  }
-  return false;
-}
-
-async function setupMasterPassword(masterPassword, confirmPassword) {
-  if (masterPassword !== confirmPassword) throw new Error('Passwords do not match');
-  if (masterPassword.length < 8) throw new Error('Password too short: minimum 8 characters');
-  const salt = await generateAndSaveSalt();
-  const key = await deriveKeyFromPassword(masterPassword, salt);
-  const hash = await exportKeyHash(key);
-  await saveMasterPasswordHash(hash);
-  cryptoKey = key;
-  return true;
-}
-
-async function encryptData(key, data) {
-  const encoder = new TextEncoder();
-  const iv = window.crypto.getRandomValues(new Uint8Array(12));
-  const encrypted = await window.crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv: iv },
-    key,
-    encoder.encode(data)
-  );
-  return { encryptedData: new Uint8Array(encrypted), iv: iv };
-}
-
-async function decryptData(key, encryptedData, iv) {
-  const decrypted = await window.crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv: iv },
-    key,
-    encryptedData
-  );
-  const decoder = new TextDecoder();
-  return decoder.decode(decrypted);
-}
-
-function savePasswordEntry(site, username, password, key) {
-  return encryptData(key, JSON.stringify({site, username, password}))
-    .then(({encryptedData, iv}) => {
-      const storageData = {};
-      storageData[site] = { encrypted: Array.from(encryptedData), iv: Array.from(iv) };
-      return chrome.storage.local.set(storageData);
-    });
-}
-
-function getPasswordEntry(site, key) {
-  return new Promise((resolve, reject) => {
-    chrome.storage.local.get([site], async function(result) {
-      if (!result[site]) {
-        reject('No data found');
-        return;
-      }
-      const { encrypted, iv } = result[site];
-      const encryptedData = new Uint8Array(encrypted);
-      const ivArray = new Uint8Array(iv);
-      try {
-        const decrypted = await decryptData(key, encryptedData, ivArray);
-        resolve(JSON.parse(decrypted));
-      } catch (e) {
-        reject('Decryption failed');
-      }
-    });
-  });
-}
 
 chrome.storage.local.get('detectedCredentials', (result) => {
   if (result.detectedCredentials) {
@@ -145,41 +14,28 @@ chrome.storage.local.get('detectedCredentials', (result) => {
   }
 });
 
-document.getElementById('saveDetectedBtn').addEventListener('click', async () => {
-  if (!cryptoKey) {
-    alert('Please unlock vault first');
-    return;
-  }
-  if (!detectedCredentials) {
-    alert('No detected credentials to save.');
-    return;
-  }
-  try {
-    await savePasswordEntry(
-      detectedCredentials.site,
-      detectedCredentials.username,
-      detectedCredentials.password,
-      cryptoKey
-    );
-    alert('Detected credentials saved securely!');
-    detectedCredentials = null;
-    chrome.storage.local.remove('detectedCredentials');
-    document.getElementById('detectedDiv').style.display = 'none';
-  } catch {
-    alert('Failed to save detected credentials.');
-  }
-});
+function sendToBackground(message) {
+  return new Promise((resolve) => {
+    chrome.runtime.sendMessage(message, (resp) => {
+      resolve(resp);
+    });
+  });
+}
 
 document.getElementById('setupBtn').addEventListener('click', async () => {
   const pw1 = document.getElementById('masterPasswordSetup').value;
   const pw2 = document.getElementById('masterPasswordConfirm').value;
   const message = document.getElementById('message');
   try {
-    await setupMasterPassword(pw1, pw2);
-    message.textContent = 'Master password set! Vault unlocked.';
-    showVaultUI();
+    const resp = await sendToBackground({ action: 'setupMasterPassword', masterPassword: pw1, confirmPassword: pw2 });
+    if (resp && resp.status === 'success') {
+      message.textContent = 'Master password set! Vault unlocked.';
+      showVaultUI();
+    } else {
+      message.textContent = resp.reason || 'Failed to set master password';
+    }
   } catch (e) {
-    message.textContent = e.message;
+    message.textContent = 'Error setting master password';
   }
 });
 
@@ -187,19 +43,20 @@ document.getElementById('unlockBtn').addEventListener('click', async () => {
   const pw = document.getElementById('masterPasswordUnlock').value;
   const message = document.getElementById('message');
   try {
-    if (await verifyMasterPassword(pw)) {
+    const resp = await sendToBackground({ action: 'verifyMasterPassword', masterPassword: pw });
+    if (resp && resp.status === 'success') {
       message.textContent = 'Vault unlocked.';
       showVaultUI();
     } else {
-      message.textContent = 'Incorrect master password.';
+      message.textContent = resp.reason || 'Incorrect master password.';
     }
   } catch {
     message.textContent = 'An error occurred during unlock.';
   }
 });
 
-document.getElementById('lockBtn').addEventListener('click', () => {
-  cryptoKey = null;
+document.getElementById('lockBtn').addEventListener('click', async () => {
+  await sendToBackground({ action: 'lockVault' });
   document.getElementById('vault').style.display = 'none';
   document.getElementById('unlockDiv').style.display = 'block';
   document.getElementById('setupMasterDiv').style.display = 'none';
@@ -208,10 +65,6 @@ document.getElementById('lockBtn').addEventListener('click', () => {
 });
 
 document.getElementById('saveBtn').addEventListener('click', async () => {
-  if (!cryptoKey) {
-    alert('Please unlock vault first');
-    return;
-  }
   const site = document.getElementById('site').value.trim();
   const username = document.getElementById('username').value.trim();
   const password = document.getElementById('password').value.trim();
@@ -219,26 +72,42 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
     alert('Please fill all fields');
     return;
   }
-  try {
-    await savePasswordEntry(site, username, password, cryptoKey);
+  const resp = await sendToBackground({ action: 'savePasswordEntry', site, username, password });
+  if (resp && resp.status === 'success') {
     alert('Password saved securely');
-  } catch {
+  } else if (resp && resp.status === 'locked') {
+    alert('Vault locked. Unlock first.');
+  } else {
     alert('Failed to save password');
   }
 });
 
-document.getElementById('retrieveBtn').addEventListener('click', async () => {
-  if (!cryptoKey) {
+document.getElementById('saveDetectedBtn').addEventListener('click', async () => {
+  if (!detectedCredentials) { alert('No detected credentials.'); return; }
+  const resp = await sendToBackground({
+    action: 'savePasswordEntry',
+    site: detectedCredentials.site,
+    username: detectedCredentials.username,
+    password: detectedCredentials.password
+  });
+  if (resp && resp.status === 'success') {
+    alert('Detected credentials saved securely!');
+    detectedCredentials = null;
+    chrome.storage.local.remove('detectedCredentials');
+    document.getElementById('detectedDiv').style.display = 'none';
+  } else if (resp && resp.status === 'locked') {
     alert('Please unlock vault first');
-    return;
+  } else {
+    alert('Failed to save detected credentials.');
   }
+});
+
+document.getElementById('retrieveBtn').addEventListener('click', async () => {
   const site = document.getElementById('retrieveSite').value.trim();
-  if (!site) {
-    alert('Please enter a site to retrieve');
-    return;
-  }
-  try {
-    const entry = await getPasswordEntry(site, cryptoKey);
+  if (!site) { alert('Please enter a site to retrieve'); return; }
+  const resp = await sendToBackground({ action: 'getPasswordEntry', site });
+  if (resp && resp.status === 'success') {
+    const entry = resp.entry;
     document.getElementById('result').textContent =
       `Site: ${entry.site}\nUsername: ${entry.username}\nPassword: ${entry.password}`;
 
@@ -254,23 +123,25 @@ document.getElementById('retrieveBtn').addEventListener('click', async () => {
         alert('Failed to autofill: ' + (response ? response.reason : 'No response'));
       }
     });
-  } catch (e) {
-    document.getElementById('result').textContent = e;
+  } else if (resp && resp.status === 'locked') {
+    alert('Vault locked. Unlock first.');
+  } else if (resp && resp.status === 'notfound') {
+    alert('No credentials found for that site.');
+  } else {
+    alert('Failed to retrieve entry.');
   }
 });
 
 function generatePassword(length = 16) {
   const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()-_=+[]{}|;:,.<>?';
   let password = '';
-  const cryptoObj = window.crypto || window.msCrypto;
   let randomValues = new Uint32Array(length);
-  cryptoObj.getRandomValues(randomValues);
+  crypto.getRandomValues(randomValues);
   for (let i = 0; i < length; i++) {
     password += charset[randomValues[i] % charset.length];
   }
   return password;
 }
-
 document.getElementById('generateBtn').addEventListener('click', () => {
   const password = generatePassword(16);
   document.getElementById('generatedPassword').value = password;
@@ -318,7 +189,8 @@ function showVaultUI() {
 }
 
 (async function init() {
-  if (!(await isMasterPasswordSet())) {
+  const res = await chrome.storage.local.get('masterKeyHash');
+  if (!res.masterKeyHash) {
     document.getElementById('setupMasterDiv').style.display = 'block';
     document.getElementById('unlockDiv').style.display = 'none';
   } else {
@@ -329,7 +201,3 @@ function showVaultUI() {
   document.getElementById('message').textContent = '';
   document.getElementById('detectedDiv').style.display = 'none';
 })();
-
-window.addEventListener('unload', () => {
-  cryptoKey = null;
-});
