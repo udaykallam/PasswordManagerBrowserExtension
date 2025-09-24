@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Secure Password Manager",
+  "name": "FortiVault",
   "version": "1.0",
   "description": "A secure password manager extension with notification save prompt",
   "permissions": [
